@@ -265,7 +265,7 @@ function frac(v){
 function pretty(s){
   return String(s).replace(/\*\*/g,'^').replace(/\s*\*\s*/g,'·').replace(/sqrt\(/g,'√(')
     .replace(/\bpi\b/g,'π').replace(/\blog\(/g,'ln(')
-    .replace(/\^2(?![\d.])/g,'²').replace(/\^3(?![\d.])/g,'³').replace(/-/g,'−');
+    .replace(/\^(\d+)(?![\d.])/g,function(m,d){return d.split('').map(function(c){return '⁰¹²³⁴⁵⁶⁷⁸⁹'[+c];}).join('');}).replace(/-/g,'−');
 }
 function subst(s,v){return pretty(s.replace(/\bx\b/g,'('+raw(v)+')'));}
 function bnd(v){return v===Infinity?'∞':v===-Infinity?'−∞':frac(Math.round(v*1e9)/1e9);}
@@ -273,6 +273,8 @@ function bnd(v){return v===Infinity?'∞':v===-Infinity?'−∞':frac(Math.round
 /* ====== Limpieza y validación de expresiones ====== */
 function clean(s){
   s=String(s).trim().toLowerCase();
+  var SUP={'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9','⁻':'-'};
+  s=s.replace(/[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+/g,function(m){var t=m.split('').map(function(c){return SUP[c];}).join('');return '^'+(t[0]==='-'?'('+t+')':t);});
   s=s.replace(/[×·]/g,'*').replace(/÷/g,'/').replace(/[−–—]/g,'-').replace(/π/g,'pi')
      .replace(/²/g,'^2').replace(/³/g,'^3').replace(/\*\*/g,'^')
      .replace(/√\s*\(/g,'sqrt(').replace(/√\s*([a-z0-9.]+)/g,'sqrt($1)')
