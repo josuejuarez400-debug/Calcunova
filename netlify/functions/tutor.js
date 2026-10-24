@@ -1,6 +1,6 @@
 // Función de Netlify: tutor con IA (Gemini).
 // La clave NO va en el código: se guarda en Netlify como variable de entorno GEMINI_API_KEY.
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 const SYSTEM =
   "Eres un tutor de Precálculo y Cálculo para estudiantes universitarios. " +
   "Responde en español, con pasos cortos y lenguaje sencillo, máximo 180 palabras. " +
@@ -12,7 +12,7 @@ exports.handler = async (event) => {
   const reply = (code, obj) => ({ statusCode: code, headers, body: JSON.stringify(obj) });
 
   if (event.httpMethod !== "POST") return reply(405, { error: "Método no permitido." });
-  const key = process.env.GEMINI_API_KEY;
+  const key = (process.env.GEMINI_API_KEY || "").trim();
   if (!key) return reply(500, { error: "El tutor aún no está configurado (falta la clave)." });
 
   let q = "", ctx = "";
@@ -40,7 +40,11 @@ exports.handler = async (event) => {
       }
     );
     if (r.status === 429) return reply(429, { error: "El tutor está ocupado (límite gratuito). Intenta en un minuto." });
-    if (!r.ok) return reply(502, { error: "El tutor no pudo responder (código " + r.status + ")." });
+    if (!r.ok) {
+      const detail = await r.text();
+      console.error("Gemini error", r.status, detail);
+      return reply(502, { error: "El tutor no pudo responder (código " + r.status + "). " + detail.slice(0, 250) });
+    }
     const d = await r.json();
     const parts = d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts;
     const out = (parts || []).map((p) => p.text || "").join("").trim();
