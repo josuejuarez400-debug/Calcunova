@@ -997,6 +997,33 @@ function diffRules(node){
   if(!set.length)add('Derivada de una constante o de x.');
   return set;
 }
+function polyShow(str){
+  try{var co=polyN(mkf(str));if(co)return pretty(pstr(co));}catch(e){}
+  return pretty(str);
+}
+function termSteps(node){
+  var t=[],lines=[],allPoly=true;
+  flatTerms(node,1,t);
+  t.forEach(function(q,idx){
+    var str=q.n.toString(),co=null,sg=q.s,head=(idx+1)+') ';
+    try{co=polyN(mkf(str));}catch(e){co=null;}
+    var nz=co?co.map(function(v,k){return {v:v,k:k};}).filter(function(o){return Math.abs(o.v)>1e-12;}):[];
+    if(co&&nz.length===1){
+      var c=nz[0].v*sg,k=nz[0].k,shownT=pretty(pstr(co.map(function(v){return v*sg;})));
+      if(k===0){lines.push(head+shownT+'\n   Es un número solo (no tiene x), no cambia → su derivada es 0.');}
+      else if(k===1){lines.push(head+shownT+'\n   La derivada de x es 1, así que solo queda el número de adelante: '+frac(c)+'.');}
+      else{
+        var nc=c*k,arr=[];for(var i=0;i<k;i++)arr.push(0);arr[k-1]=nc;
+        lines.push(head+shownT+'\n   • Bajamos el exponente ('+k+') a multiplicar: '+frac(c)+' · '+k+' = '+frac(nc)+'\n   • Al exponente le restamos 1: '+k+' − 1 = '+(k-1)+'\n   • Queda: '+pretty(pstr(arr)));
+      }
+    }else{
+      allPoly=false;
+      var dd=symDiff((sg<0?'-':'')+'('+str+')',1);
+      lines.push(head+pretty((sg<0?'-':'')+str)+'\n   Reglas usadas: '+diffRules(q.n).join('; ')+'\n   Queda: '+(dd?pretty(dd):'(no se pudo)'));
+    }
+  });
+  return {lines:lines,allPoly:allPoly};
+}
 function mDeriv(rawStr,ptStr,order){
   order=order||1;
   var p=parseExpr(rawStr);
@@ -1005,21 +1032,24 @@ function mDeriv(rawStr,ptStr,order){
   if(!hasN)throw new UserError('El motor simbólico no se cargó. Revisa tu conexión y recarga la página.');
   var f=mkf(p.s);
   step(r,'Datos','f(x) = '+pretty(p.s));
-  step(r,'En palabras simples','La derivada es la pendiente de la recta tangente: mide qué tan rápido cambia f(x).');
-  step(r,'Fórmulas / reglas','• '+diffRules(p.node).join('\n• '));
+  step(r,'En palabras simples','La derivada nos dice qué tan inclinada está la gráfica en cada punto, es decir, qué tan rápido sube o baja f(x).');
+  var TS=termSteps(p.node);
+  step(r,'Idea','Derivamos cada término por separado y al final juntamos los resultados.\nRegla principal: si tienes un número por x elevada a una potencia, el exponente baja a multiplicar y al exponente se le resta 1. Un número solo se vuelve 0.');
+  if(!TS.allPoly)step(r,'Fórmulas / reglas','• '+diffRules(p.node).join('\n• '));
+  step(r,'Paso a paso','Separamos f(x) en términos y derivamos uno por uno:\n\n'+TS.lines.join('\n\n'));
   var d1=symDiff(p.s,1);
   if(!d1)throw new UserError('No pude derivar esa expresión. Revisa que esté bien escrita.');
   var d1f=symFactor(d1),shown=d1f&&d1f.replace(/\s/g,'')!==d1.replace(/\s/g,'')&&d1f.length<=d1.length*2.2?'\n   = '+pretty(d1f):'';
-  step(r,'Procedimiento','Aplicamos las reglas a cada término:\nf′(x) = '+pretty(d1)+shown);
+  step(r,'Juntamos todo','Sumamos los resultados de cada término (ordenados de mayor a menor potencia):\nf′(x) = '+polyShow(d1)+(TS.allPoly?'':shown));
   var final=d1,dstr='f′(x)',fd=mkf(d1);
   if(order===2){
     var d2=symDiff(p.s,2);if(!d2)throw new UserError('No pude obtener la segunda derivada.');
-    step(r,'Segunda derivada','Derivamos f′(x) de nuevo:\nf″(x) = '+pretty(d2));
+    step(r,'Segunda derivada','Volvemos a derivar f′(x) con las mismas reglas:\nf″(x) = '+polyShow(d2));
     final=d2;dstr='f″(x)';fd=mkf(d2);
   }
   var x0=1.37;
-  step(r,'Verificación','Comparamos con el cociente de diferencias en x = '+x0+':\n'+(order===1?'[f(x+h) − f(x−h)] / 2h':'[f(x+h) − 2f(x) + f(x−h)] / h²')+' ≈ '+fmt(order===1?(f(x0+1e-5)-f(x0-1e-5))/2e-5:(f(x0+1e-3)-2*f(x0)+f(x0-1e-3))/1e-6)+'\n'+dstr+'('+x0+') = '+fmt(fd(x0))+'  '+(Math.abs((order===1?(f(x0+1e-5)-f(x0-1e-5))/2e-5:(f(x0+1e-3)-2*f(x0)+f(x0-1e-3))/1e-6)-fd(x0))<1e-3*(1+Math.abs(fd(x0)))?'✓':'✗'));
-  r.answer=dstr+' = '+pretty(final);
+  step(r,'Comprobación','Otra forma de comprobar: calcular la pendiente entre dos puntos muy cercanos a x = '+x0+' y ver que da lo mismo:\n'+(order===1?'[f(x+h) − f(x−h)] / 2h':'[f(x+h) − 2f(x) + f(x−h)] / h²')+' ≈ '+fmt(order===1?(f(x0+1e-5)-f(x0-1e-5))/2e-5:(f(x0+1e-3)-2*f(x0)+f(x0-1e-3))/1e-6)+'\n'+dstr+'('+x0+') = '+fmt(fd(x0))+'  '+(Math.abs((order===1?(f(x0+1e-5)-f(x0-1e-5))/2e-5:(f(x0+1e-3)-2*f(x0)+f(x0-1e-3))/1e-6)-fd(x0))<1e-3*(1+Math.abs(fd(x0)))?'✓':'✗'));
+  r.answer=dstr+' = '+polyShow(final);
   if(ptStr){
     var a=evalNum(ptStr);
     if(!isFinite(a))throw new UserError('No entendí el punto «'+ptStr+'». Usa un número, por ejemplo: derivada de x^3 en x=2');
