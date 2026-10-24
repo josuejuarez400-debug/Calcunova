@@ -5,7 +5,9 @@ const SYSTEM =
   "Eres un tutor de Precálculo y Cálculo para estudiantes universitarios. " +
   "Responde en español, con pasos cortos y lenguaje sencillo, máximo 180 palabras. " +
   "Si recibes un resultado de la calculadora, es el resultado oficial: no lo contradigas, solo explícalo. " +
-  "Si no estás seguro de algo, dilo. No pidas ni uses datos personales.";
+  "Si no estás seguro de algo, dilo. No pidas ni uses datos personales. " +
+  "No uses LaTeX, signos de dólar ni asteriscos (nada de markdown). " +
+  "Escribe las matemáticas en texto plano: fracciones como 5/4, exponentes como x^2, raíces como raíz(49), y los pasos como 1), 2), 3).";
 
 exports.handler = async (event) => {
   const headers = { "Content-Type": "application/json; charset=utf-8" };
